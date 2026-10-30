@@ -1,19 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowLeft,
+  ArrowRight,
   ArrowUpLeft,
   BookOpen,
   Check,
   ChevronLeft,
+  ClipboardCheck,
   Headphones,
   Heart,
   Instagram,
   Library,
+  MapPin,
   Menu,
+  Minus,
+  PackageCheck,
+  Phone,
+  Plus,
   Search,
   ShoppingBag,
   Sparkles,
   Truck,
+  UserRound,
+  WalletCards,
   X,
 } from 'lucide-react'
 
@@ -30,12 +39,11 @@ type Product = {
   description: string
 }
 
-type Category = {
-  label: string
-  count: string
-  symbol: string
-  tone: string
-}
+type Category = { label: string; count: string; symbol: string; tone: string }
+type View = 'home' | 'product' | 'cart' | 'checkout' | 'success'
+type CartMap = Record<number, number>
+type OrderForm = { name: string; phone: string; province: string; area: string; address: string; payment: 'cod' | 'transfer'; notes: string }
+type OrderReceipt = { number: string; total: number; customer: string }
 
 const categories: Category[] = [
   { label: 'روايات عربية', count: '128 عنوانًا', symbol: '01', tone: 'category-olive' },
@@ -45,272 +53,91 @@ const categories: Category[] = [
 ]
 
 const products: Product[] = [
-  {
-    id: 1,
-    title: 'مدن الملح',
-    author: 'عبد الرحمن منيف',
-    category: 'روايات عربية',
-    price: 85000,
-    badge: 'الأكثر طلبًا',
-    tone: 'olive',
-    kind: 'book',
-    description: 'نسخة مختارة من الرواية العربية التي صنعت ذاكرة جيل كامل.',
-  },
-  {
-    id: 2,
-    title: 'رسائل إلى شاعر شاب',
-    author: 'راينر ماريا ريلكه',
-    category: 'فكر وتاريخ',
-    price: 60000,
-    oldPrice: 72000,
-    badge: 'عرض الأسبوع',
-    tone: 'terracotta',
-    kind: 'book',
-    description: 'كلمات هادئة عن الكتابة والحياة والعثور على الصوت الخاص.',
-  },
-  {
-    id: 3,
-    title: 'أطلس دمشق الصغير',
-    author: 'إصدار سوق الكتاب',
-    category: 'مطبوعات فنية',
-    price: 110000,
-    badge: 'إصدار جديد',
-    tone: 'sand',
-    kind: 'print',
-    description: 'طباعة فنية تحتفي بتفاصيل المدينة، مناسبة للإهداء والاقتناء.',
-  },
-  {
-    id: 4,
-    title: 'الأمير الصغير',
-    author: 'أنطوان دو سانت إكزوبيري',
-    category: 'كتب الأطفال',
-    price: 45000,
-    tone: 'blue',
-    kind: 'book',
-    description: 'حكاية لا تكبر، برسومات وطبعة محببة للقراءة الأولى.',
-  },
-  {
-    id: 5,
-    title: 'موسم الهجرة إلى الشمال',
-    author: 'الطيب صالح',
-    category: 'روايات عربية',
-    price: 70000,
-    tone: 'ink',
-    kind: 'book',
-    description: 'رواية عربية خالدة عن الذاكرة والهوية والعودة.',
-  },
-  {
-    id: 6,
-    title: 'دفتر يوميات هادئة',
-    author: 'ورق سوق الكتاب',
-    category: 'مطبوعات فنية',
-    price: 35000,
-    badge: 'محدود',
-    tone: 'rose',
-    kind: 'print',
-    description: 'دفتر عملي بغلاف متين ومساحات واسعة للأفكار والرسومات.',
-  },
+  { id: 1, title: 'مدن الملح', author: 'عبد الرحمن منيف', category: 'روايات عربية', price: 85000, badge: 'الأكثر طلبًا', tone: 'olive', kind: 'book', description: 'نسخة مختارة من الرواية العربية التي صنعت ذاكرة جيل كامل.' },
+  { id: 2, title: 'رسائل إلى شاعر شاب', author: 'راينر ماريا ريلكه', category: 'فكر وتاريخ', price: 60000, oldPrice: 72000, badge: 'عرض الأسبوع', tone: 'terracotta', kind: 'book', description: 'كلمات هادئة عن الكتابة والحياة والعثور على الصوت الخاص.' },
+  { id: 3, title: 'أطلس دمشق الصغير', author: 'إصدار سوق الكتاب', category: 'مطبوعات فنية', price: 110000, badge: 'إصدار جديد', tone: 'sand', kind: 'print', description: 'طباعة فنية تحتفي بتفاصيل المدينة، مناسبة للإهداء والاقتناء.' },
+  { id: 4, title: 'الأمير الصغير', author: 'أنطوان دو سانت إكزوبيري', category: 'كتب الأطفال', price: 45000, tone: 'blue', kind: 'book', description: 'حكاية لا تكبر، برسومات وطبعة محببة للقراءة الأولى.' },
+  { id: 5, title: 'موسم الهجرة إلى الشمال', author: 'الطيب صالح', category: 'روايات عربية', price: 70000, tone: 'ink', kind: 'book', description: 'رواية عربية خالدة عن الذاكرة والهوية والعودة.' },
+  { id: 6, title: 'دفتر يوميات هادئة', author: 'ورق سوق الكتاب', category: 'مطبوعات فنية', price: 35000, badge: 'محدود', tone: 'rose', kind: 'print', description: 'دفتر عملي بغلاف متين ومساحات واسعة للأفكار والرسومات.' },
 ]
 
+const provinces = ['دمشق', 'ريف دمشق', 'حلب', 'حمص', 'حماة', 'اللاذقية', 'طرطوس', 'إدلب', 'درعا', 'السويداء', 'القنيطرة', 'دير الزور', 'الرقة', 'الحسكة']
+const deliveryFee = 15000
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ar-SY').format(value)} ل.س`
 
+function readCart(): CartMap {
+  if (typeof window === 'undefined') return {}
+  try { return JSON.parse(window.localStorage.getItem('sooqalketab-cart-v1') || '{}') as CartMap } catch { return {} }
+}
+
 function BookCover({ product, compact = false }: { product: Product; compact?: boolean }) {
-  return (
-    <div className={`book-cover cover-${product.tone} ${compact ? 'book-cover-compact' : ''}`} aria-label={`غلاف ${product.title}`}>
-      <span className="cover-kicker">سوق الكتاب</span>
-      <span className="cover-title">{product.title}</span>
-      <span className="cover-author">{product.author}</span>
-      <span className="cover-line" aria-hidden="true" />
-      <span className="cover-type">{product.kind === 'book' ? 'كتاب' : 'مطبوعات'}</span>
-    </div>
-  )
+  return <div className={`book-cover cover-${product.tone} ${compact ? 'book-cover-compact' : ''}`} aria-label={`غلاف ${product.title}`}><span className="cover-kicker">سوق الكتاب</span><span className="cover-title">{product.title}</span><span className="cover-author">{product.author}</span><span className="cover-line" aria-hidden="true" /><span className="cover-type">{product.kind === 'book' ? 'كتاب' : 'مطبوعات'}</span></div>
 }
 
 function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {
-  return (
-    <div className="section-heading">
-      <div>
-        <span className="eyebrow">{eyebrow}</span>
-        <h2>{title}</h2>
-      </div>
-      {action && onAction && (
-        <button className="text-link" onClick={onAction}>
-          {action}
-          <ArrowLeft size={17} strokeWidth={1.8} />
-        </button>
-      )}
-    </div>
-  )
+  return <div className="section-heading"><div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2></div>{action && onAction && <button className="text-link" onClick={onAction}>{action}<ArrowLeft size={17} strokeWidth={1.8} /></button>}</div>
+}
+
+function ProductDetails({ product, onBack, onAdd, onCart }: { product: Product; onBack: () => void; onAdd: (product: Product, quantity?: number) => void; onCart: () => void }) {
+  const [quantity, setQuantity] = useState(1)
+  return <section className="store-view product-detail-view"><div className="container"><button className="back-link" onClick={onBack}><ArrowRight size={17} /> العودة إلى المتجر</button><div className="product-detail-grid"><div className="detail-art"><BookCover product={product} /><span className="detail-art-note">مختار بعناية<br />لسلة القراءة</span></div><div className="detail-copy"><span className="product-category">{product.category}</span><h1>{product.title}</h1><p className="detail-author">بقلم {product.author}</p><div className="detail-rating"><span>★★★★★</span><small>اختيار القرّاء · متوفر للطلب</small></div><p className="detail-description">{product.description} هذه الصفحة تجريبية الآن، وستحتوي لاحقًا على تفاصيل الطبعة وعدد الصفحات وصور المنتج ومراجعات القرّاء.</p><div className="detail-meta"><span><BookOpen size={17} /> {product.kind === 'book' ? 'كتاب ورقي' : 'مطبوع فني'}</span><span><Truck size={17} /> توصيل داخل سوريا</span><span><PackageCheck size={17} /> تغليف مناسب للإهداء</span></div><div className="detail-buy"><div><strong>{formatPrice(product.price)}</strong>{product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}</div><div className="quantity-control"><button aria-label="إنقاص الكمية" onClick={() => setQuantity((value) => Math.max(1, value - 1))}><Minus size={16} /></button><span>{quantity}</span><button aria-label="زيادة الكمية" onClick={() => setQuantity((value) => value + 1)}><Plus size={16} /></button></div><button className="button button-primary" onClick={() => onAdd(product, quantity)}>أضف إلى السلة <ShoppingBag size={18} /></button></div><button className="detail-cart-link" onClick={onCart}>الانتقال إلى السلة <ArrowLeft size={16} /></button></div></div></div></section>
+}
+
+function CartPage({ cart, lines, subtotal, onBack, onUpdate, onRemove, onCheckout }: { cart: CartMap; lines: { product: Product; quantity: number }[]; subtotal: number; onBack: () => void; onUpdate: (id: number, quantity: number) => void; onRemove: (id: number) => void; onCheckout: () => void }) {
+  if (!lines.length) return <section className="store-view"><div className="container"><button className="back-link" onClick={onBack}><ArrowRight size={17} /> العودة إلى المتجر</button><div className="cart-empty"><ShoppingBag size={42} /><h1>سلتك تنتظر أول كتاب</h1><p>أضف ما تحب من الرفوف، وسنرتب لك الطلب في خطوة واحدة.</p><button className="button button-primary" onClick={onBack}>تصفح المختارات <ArrowLeft size={18} /></button></div></div></section>
+  return <section className="store-view cart-view"><div className="container"><button className="back-link" onClick={onBack}><ArrowRight size={17} /> متابعة التسوق</button><div className="view-heading"><div><span className="eyebrow">خطوتك الأولى</span><h1>سلة المشتريات</h1></div><span className="cart-count-label">{Object.values(cart).reduce((sum, value) => sum + value, 0)} قطع</span></div><div className="cart-layout"><div className="cart-lines">{lines.map(({ product, quantity }) => <article className="cart-line" key={product.id}><BookCover product={product} compact /><div className="cart-line-copy"><span className="product-category">{product.category}</span><h2>{product.title}</h2><p>{product.author}</p><strong>{formatPrice(product.price)}</strong></div><div className="cart-line-actions"><div className="quantity-control"><button aria-label="إنقاص الكمية" onClick={() => onUpdate(product.id, quantity - 1)}><Minus size={14} /></button><span>{quantity}</span><button aria-label="زيادة الكمية" onClick={() => onUpdate(product.id, quantity + 1)}><Plus size={14} /></button></div><button className="remove-link" onClick={() => onRemove(product.id)}>حذف</button></div></article>)}</div><aside className="summary-card"><span className="eyebrow">ملخص الطلب</span><h2>جاهز للتأكيد؟</h2><div className="summary-row"><span>مجموع الكتب</span><strong>{formatPrice(subtotal)}</strong></div><div className="summary-row"><span>التوصيل داخل سوريا <small>تقديري</small></span><strong>{formatPrice(deliveryFee)}</strong></div><div className="summary-total"><span>الإجمالي</span><strong>{formatPrice(subtotal + deliveryFee)}</strong></div><p className="summary-note">سيتم تأكيد رسوم التوصيل النهائية معك بعد مراجعة المحافظة والمنطقة.</p><button className="button button-primary full-button" onClick={onCheckout}>متابعة بيانات الطلب <ArrowLeft size={18} /></button></aside></div></div></section>
+}
+
+function CheckoutPage({ total, onBack, onSubmit }: { total: number; onBack: () => void; onSubmit: (data: OrderForm) => void }) {
+  const [form, setForm] = useState<OrderForm>({ name: '', phone: '', province: '', area: '', address: '', payment: 'cod', notes: '' })
+  const update = (field: keyof OrderForm, value: string) => setForm((current) => ({ ...current, [field]: value }))
+  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); onSubmit(form) }
+  return <section className="store-view checkout-view"><div className="container"><button className="back-link" onClick={onBack}><ArrowRight size={17} /> العودة إلى السلة</button><div className="view-heading"><div><span className="eyebrow">بيانات التوصيل</span><h1>أكمل طلبك بهدوء</h1></div><span className="checkout-total">{formatPrice(total)}</span></div><div className="checkout-layout"><form className="checkout-form" onSubmit={submit}><div className="form-section"><h2><UserRound size={18} /> معلومات التواصل</h2><div className="form-grid"><label>الاسم الكامل<input required autoComplete="name" value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="مثال: محمد أحمد" /></label><label>رقم الهاتف<input required autoComplete="tel" inputMode="tel" pattern="(09|\+?9639|009639)[0-9]{8}" value={form.phone} onChange={(event) => update('phone', event.target.value.replace(/[^0-9+]/g, ''))} placeholder="09xxxxxxxx" /><small>رقم سوري يبدأ بـ 09</small></label></div></div><div className="form-section"><h2><MapPin size={18} /> عنوان التوصيل</h2><div className="form-grid"><label>المحافظة<select required value={form.province} onChange={(event) => update('province', event.target.value)}><option value="">اختر المحافظة</option>{provinces.map((province) => <option key={province}>{province}</option>)}</select></label><label>المنطقة / المدينة<input required value={form.area} onChange={(event) => update('area', event.target.value)} placeholder="المنطقة أو المدينة" /></label></div><label>العنوان التفصيلي<input required value={form.address} onChange={(event) => update('address', event.target.value)} placeholder="الشارع، البناء، الطابق، وأقرب نقطة دالة" /></label></div><div className="form-section"><h2><WalletCards size={18} /> طريقة الدفع</h2><div className="payment-options"><label className={form.payment === 'cod' ? 'selected' : ''}><input type="radio" name="payment" checked={form.payment === 'cod'} onChange={() => update('payment', 'cod')} /><span><strong>الدفع عند الاستلام</strong><small>الخيار الأنسب كبداية داخل سوريا</small></span><Check size={17} /></label><label className={form.payment === 'transfer' ? 'selected' : ''}><input type="radio" name="payment" checked={form.payment === 'transfer'} onChange={() => update('payment', 'transfer')} /><span><strong>تحويل يدوي</strong><small>سنرسل تفاصيل التحويل بعد التواصل</small></span><Check size={17} /></label></div></div><div className="form-section"><label>ملاحظات للطلب <span className="optional">اختياري</span><textarea rows={3} value={form.notes} onChange={(event) => update('notes', event.target.value)} placeholder="مثال: أفضّل الاتصال قبل التوصيل" /></label></div><button className="button button-primary full-button" type="submit">تأكيد إرسال الطلب <ClipboardCheck size={18} /></button><p className="form-disclaimer">هذه نسخة تشغيل أولية: يتم حفظ الطلب على هذا الجهاز للتجربة فقط إلى حين ربط قاعدة البيانات ووسيلة التواصل الرسمية.</p></form><aside className="checkout-aside"><Truck size={25} /><h2>توصيل محلي واضح</h2><p>نراجع عنوانك ورقمك يدويًا قبل اعتماد الطلب، ثم نتواصل معك لتأكيد التوفر والرسوم وموعد التوصيل.</p><div className="aside-step"><span>01</span><div><strong>أرسل بياناتك</strong><small>نحتاج معلومات بسيطة ودقيقة</small></div></div><div className="aside-step"><span>02</span><div><strong>نؤكد معك</strong><small>اتصال أو رسالة بعد المراجعة</small></div></div><div className="aside-step"><span>03</span><div><strong>يصلك طلبك</strong><small>بتغليف مناسب وآمن</small></div></div></aside></div></div></section>
+}
+
+function SuccessPage({ receipt, onHome, onCart }: { receipt: OrderReceipt; onHome: () => void; onCart: () => void }) {
+  return <section className="store-view success-view"><div className="container"><div className="success-card"><span className="success-icon"><Check size={30} /></span><span className="eyebrow">تم استلام الطلب مبدئيًا</span><h1>شكرًا يا {receipt.customer}</h1><p>سجلنا طلبك بنجاح في هذه النسخة التجريبية. احتفظ برقم الطلب عند التواصل معنا.</p><div className="order-number"><small>رقم الطلب</small><strong>{receipt.number}</strong></div><div className="success-total"><span>الإجمالي التقديري</span><strong>{formatPrice(receipt.total)}</strong></div><div className="success-actions"><button className="button button-primary" onClick={onHome}>العودة للمتجر <ArrowLeft size={18} /></button><button className="button button-quiet" onClick={onCart}>عرض السلة</button></div></div></div></section>
 }
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('الكل')
-  const [cartCount, setCartCount] = useState(0)
+  const [cart, setCart] = useState<CartMap>(readCart)
+  const [view, setView] = useState<View>('home')
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [addedId, setAddedId] = useState<number | null>(null)
   const [notice, setNotice] = useState('')
+  const [receipt, setReceipt] = useState<OrderReceipt | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const cartCount = Object.values(cart).reduce((sum, value) => sum + value, 0)
+  const lines = Object.entries(cart).map(([id, quantity]) => ({ product: products.find((item) => item.id === Number(id))!, quantity })).filter((line) => line.product)
+  const subtotal = lines.reduce((sum, line) => sum + line.product.price * line.quantity, 0)
+  const filteredProducts = useMemo(() => { const normalized = query.trim().toLowerCase(); return products.filter((product) => (activeCategory === 'الكل' || product.category === activeCategory) && (!normalized || `${product.title} ${product.author} ${product.category}`.toLowerCase().includes(normalized))) }, [activeCategory, query])
 
-  const filteredProducts = useMemo(() => {
-    const normalized = query.trim().toLowerCase()
-    return products.filter((product) => {
-      const matchesCategory = activeCategory === 'الكل' || product.category === activeCategory
-      const matchesQuery = !normalized || `${product.title} ${product.author} ${product.category}`.toLowerCase().includes(normalized)
-      return matchesCategory && matchesQuery
-    })
-  }, [activeCategory, query])
+  useEffect(() => { window.localStorage.setItem('sooqalketab-cart-v1', JSON.stringify(cart)) }, [cart])
+  useEffect(() => { if (!notice) return; const timeout = window.setTimeout(() => setNotice(''), 2800); return () => window.clearTimeout(timeout) }, [notice])
 
-  useEffect(() => {
-    if (!notice) return
-    const timeout = window.setTimeout(() => setNotice(''), 2600)
-    return () => window.clearTimeout(timeout)
-  }, [notice])
+  const goTo = (id: string) => { setView('home'); window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); setMenuOpen(false) }
+  const showHome = () => { setView('home'); setReceipt(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const openSearch = () => { goTo('catalog'); window.setTimeout(() => searchRef.current?.focus(), 350) }
+  const openProduct = (product: Product) => { setSelectedProduct(product); setView('product'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const addToCart = (product: Product, quantity = 1) => { setCart((current) => ({ ...current, [product.id]: (current[product.id] || 0) + quantity })); setAddedId(product.id); setNotice(`أضيف «${product.title}» إلى السلة`); window.setTimeout(() => setAddedId(null), 1800) }
+  const updateQuantity = (id: number, quantity: number) => setCart((current) => { const next = { ...current }; if (quantity <= 0) delete next[id]; else next[id] = quantity; return next })
+  const removeFromCart = (id: number) => updateQuantity(id, 0)
+  const showAllProducts = () => { setActiveCategory('الكل'); setQuery(''); goTo('catalog') }
+  const submitOrder = (data: OrderForm) => { const number = `SK-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`; const order = { number, customer: data.name, phone: data.phone, address: data.address, province: data.province, area: data.area, payment: data.payment, notes: data.notes, total: subtotal + deliveryFee, status: 'بانتظار التأكيد', items: lines, createdAt: new Date().toISOString() }; window.localStorage.setItem('sooqalketab-last-order-v1', JSON.stringify(order)); setReceipt({ number, total: subtotal + deliveryFee, customer: data.name.split(' ')[0] }); setCart({}); setView('success'); window.scrollTo({ top: 0, behavior: 'smooth' }); setNotice('تم حفظ طلبك التجريبي بنجاح') }
 
-  const goTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    setMenuOpen(false)
-  }
+  return <div className="site-shell">{notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}<div className="announcement"><span><Truck size={16} /> توصيل الكتب والمطبوعات إلى مختلف المحافظات السورية</span><span className="announcement-note">الدفع عند الاستلام متاح كبداية</span></div><header className="site-header"><div className="container header-inner"><button className="mobile-menu-button" aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={23} /> : <Menu size={23} />}</button><button className="brand brand-button" onClick={showHome} aria-label="سوق الكتاب، الصفحة الرئيسية"><span className="brand-mark"><BookOpen size={24} strokeWidth={1.7} /></span><span className="brand-copy"><strong>سوق الكتاب</strong><small>رفّك الأقرب</small></span></button><nav className={`main-nav ${menuOpen ? 'is-open' : ''}`} aria-label="التنقل الرئيسي"><a href="#catalog" onClick={() => goTo('catalog')}>تصفح الكتب</a><a href="#categories" onClick={() => goTo('categories')}>التصنيفات</a><a href="#new" onClick={() => goTo('new')}>وصل حديثًا</a><a href="#about" onClick={() => goTo('about')}>عن سوق الكتاب</a></nav><div className="header-actions"><button className="icon-button" aria-label="البحث" onClick={openSearch}><Search size={20} /></button><button className="cart-button" onClick={() => { setView('cart'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}><ShoppingBag size={19} /><span>السلة</span>{cartCount > 0 && <b>{cartCount}</b>}</button></div></div></header>
 
-  const openSearch = () => {
-    goTo('catalog')
-    window.setTimeout(() => searchRef.current?.focus(), 350)
-  }
+    {view === 'product' && selectedProduct && <ProductDetails product={selectedProduct} onBack={showHome} onAdd={addToCart} onCart={() => { setView('cart'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />}
+    {view === 'cart' && <CartPage cart={cart} lines={lines} subtotal={subtotal} onBack={showHome} onUpdate={updateQuantity} onRemove={removeFromCart} onCheckout={() => { setView('checkout'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />}
+    {view === 'checkout' && <CheckoutPage total={subtotal + deliveryFee} onBack={() => setView('cart')} onSubmit={submitOrder} />}
+    {view === 'success' && receipt && <SuccessPage receipt={receipt} onHome={showHome} onCart={() => setView('cart')} />}
 
-  const addToCart = (product: Product) => {
-    setCartCount((count) => count + 1)
-    setAddedId(product.id)
-    setNotice(`أضيف «${product.title}» إلى سلتك التجريبية`)
-    window.setTimeout(() => setAddedId(null), 1800)
-  }
+    {view === 'home' && <main id="top"><section className="hero-section"><div className="container hero-grid"><div className="hero-copy"><span className="eyebrow"><Sparkles size={15} /> مختارات تصل إلى يدك</span><h1>كتابٌ جديد،<br /><em>نافذةٌ أوسع.</em></h1><p>ننتقي لك كتبًا ومطبوعات تحمل معنى؛ من رفوف دور النشر إلى القرّاء في كل مدينة سورية.</p><div className="hero-actions"><button className="button button-primary" onClick={() => goTo('catalog')}>ابدأ التصفح <ArrowLeft size={18} /></button><button className="button button-quiet" onClick={() => goTo('about')}>لماذا سوق الكتاب؟</button></div><div className="hero-proof"><span className="proof-avatars"><i>م</i><i>ر</i><i>س</i></span><span>مختارات تُقرأ وتُهدى وتبقى</span></div></div><div className="hero-visual" aria-label="مجموعة كتب ومطبوعات مختارة"><div className="hero-note"><span>مختارات هذا الشهر</span><strong>اقرأ على مهل</strong></div><div className="hero-shelf shelf-back"><BookCover product={products[1]} compact /></div><div className="hero-shelf shelf-front"><BookCover product={products[0]} compact /></div><div className="hero-print"><span className="print-sun" /><span className="print-letter">أ</span><small>ورق<br />وفكرة</small></div><div className="hero-stamp">من<br />سوريا<br />إلى سوريا</div><span className="hero-scribble scribble-one">✳</span><span className="hero-scribble scribble-two">· · ·</span></div></div></section><section className="benefits-strip" aria-label="مزايا سوق الكتاب"><div className="container benefits-grid"><div className="benefit"><span className="benefit-icon"><Library size={20} /></span><div><strong>اختيارات بعناية</strong><small>كتب تستحق مكانًا في رفك</small></div></div><div className="benefit"><span className="benefit-icon"><Truck size={20} /></span><div><strong>توصيل داخل سوريا</strong><small>نرتبها لتصل بأمان</small></div></div><div className="benefit"><span className="benefit-icon"><Headphones size={20} /></span><div><strong>نحن قريبون</strong><small>أسئلة واقتراحات بلا تعقيد</small></div></div></div></section><section className="section categories-section" id="categories"><div className="container"><SectionHeading eyebrow="تجوّل بين الرفوف" title="ما الذي تبحث عنه اليوم؟" action="كل التصنيفات" onAction={showAllProducts} /><div className="categories-grid">{categories.map((category) => <button key={category.label} className={`category-card ${category.tone}`} onClick={() => { setActiveCategory(category.label); goTo('catalog') }}><span className="category-number">{category.symbol}</span><span className="category-icon"><BookOpen size={25} strokeWidth={1.5} /></span><span className="category-label">{category.label}</span><span className="category-count">{category.count}</span><ArrowUpLeft className="category-arrow" size={20} /></button>)}</div></div></section><section className="section catalog-section" id="catalog"><div className="container"><SectionHeading eyebrow="مختاراتنا" title="كتب تستحق أن تبدأ بها" action="عرض الكل" onAction={showAllProducts} /><div className="catalog-toolbar"><div className="search-box"><Search size={20} /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث عن كتاب، كاتب، أو موضوع..." aria-label="البحث عن كتاب" /></div><div className="filter-tabs" role="group" aria-label="تصفية المنتجات">{['الكل', 'روايات عربية', 'فكر وتاريخ', 'كتب الأطفال', 'مطبوعات فنية'].map((category) => <button key={category} className={activeCategory === category ? 'active' : ''} onClick={() => setActiveCategory(category)}>{category}</button>)}</div></div>{filteredProducts.length > 0 ? <div className="product-grid">{filteredProducts.slice(0, 4).map((product) => <article className="product-card" key={product.id}><div className="product-art"><BookCover product={product} />{product.badge && <span className="product-badge">{product.badge}</span>}<button className="wishlist" aria-label={`إضافة ${product.title} إلى المفضلة`} onClick={() => setNotice('أضيف الكتاب إلى قائمة الأمنيات التجريبية')}><Heart size={18} /></button></div><div className="product-content"><span className="product-category">{product.category}</span><button className="product-title-button" onClick={() => openProduct(product)}><h3>{product.title}</h3></button><p className="product-author">{product.author}</p><p className="product-description">{product.description}</p><div className="product-footer"><div><strong>{formatPrice(product.price)}</strong>{product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}</div><div className="product-actions"><button className="details-button" onClick={() => openProduct(product)}>التفاصيل</button><button className={`add-button ${addedId === product.id ? 'added' : ''}`} onClick={() => addToCart(product)}>{addedId === product.id ? <><Check size={17} /> تمت</> : <><ShoppingBag size={17} /> أضف</>}</button></div></div></div></article>)}</div> : <div className="empty-state"><Search size={28} /><strong>لم نجد هذا العنوان بعد</strong><span>جرّب اسمًا آخر أو تصفح كل المختارات.</span><button className="button button-secondary" onClick={showAllProducts}>عرض كل الكتب</button></div>}</div></section><section className="editorial-banner" id="about"><div className="container editorial-inner"><div className="editorial-symbol"><span>اقرأ</span><BookOpen size={26} /></div><div><span className="eyebrow">فكرة سوق الكتاب</span><h2>الكتاب الجيد لا يملأ رفًّا فقط،<br /><em>بل يترك مكانًا أوسع في الداخل.</em></h2></div><button className="circle-arrow" aria-label="اقرأ المزيد عن سوق الكتاب" onClick={() => setNotice('سنحكي قصة سوق الكتاب قريبًا')}><ArrowLeft size={22} /></button></div></section><section className="section new-section" id="new"><div className="container"><SectionHeading eyebrow="وصل حديثًا" title="إصدارات جديدة إلى الرف" action="شاهد الجديد" onAction={showAllProducts} /><div className="new-layout"><div className="new-feature"><div className="new-feature-copy"><span className="eyebrow">إصدار محدود</span><h3>أطلس دمشق الصغير</h3><p>تفاصيل المدينة التي نمرّ بها كل يوم، في مطبوعة فنية تحفظ الذاكرة وتليق بالجدار.</p><button className="text-link light-link" onClick={() => openProduct(products[2])}>اكتشف الإصدار <ArrowLeft size={17} /></button></div><div className="new-feature-art"><BookCover product={products[2]} /></div></div><div className="new-list">{products.slice(4, 6).map((product) => <article key={product.id} className="mini-product"><BookCover product={product} compact /><div><span className="product-category">{product.category}</span><h3>{product.title}</h3><p>{product.author}</p><strong>{formatPrice(product.price)}</strong></div><button aria-label={`عرض ${product.title}`} onClick={() => openProduct(product)}><ChevronLeft size={19} /></button></article>)}</div></div></div></section></main>}
 
-  const showAllProducts = () => {
-    setActiveCategory('الكل')
-    setQuery('')
-    goTo('catalog')
-  }
-
-  return (
-    <div className="site-shell">
-      {notice && <div className="toast" role="status"><Check size={17} />{notice}</div>}
-
-      <div className="announcement">
-        <span><Truck size={16} /> توصيل الكتب والمطبوعات إلى مختلف المحافظات السورية</span>
-        <span className="announcement-note">بيانات تجريبية — نجهّز تجربة الشراء القادمة</span>
-      </div>
-
-      <header className="site-header">
-        <div className="container header-inner">
-          <button className="mobile-menu-button" aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'} onClick={() => setMenuOpen((open) => !open)}>
-            {menuOpen ? <X size={23} /> : <Menu size={23} />}
-          </button>
-          <a href="#top" className="brand" onClick={() => goTo('top')} aria-label="سوق الكتاب، الصفحة الرئيسية">
-            <span className="brand-mark"><BookOpen size={24} strokeWidth={1.7} /></span>
-            <span className="brand-copy"><strong>سوق الكتاب</strong><small>رفّك الأقرب</small></span>
-          </a>
-          <nav className={`main-nav ${menuOpen ? 'is-open' : ''}`} aria-label="التنقل الرئيسي">
-            <a href="#catalog" onClick={() => goTo('catalog')}>تصفح الكتب</a>
-            <a href="#categories" onClick={() => goTo('categories')}>التصنيفات</a>
-            <a href="#new" onClick={() => goTo('new')}>وصل حديثًا</a>
-            <a href="#about" onClick={() => goTo('about')}>عن سوق الكتاب</a>
-          </nav>
-          <div className="header-actions">
-            <button className="icon-button" aria-label="البحث" onClick={openSearch}><Search size={20} /></button>
-            <button className="cart-button" onClick={() => { setNotice(cartCount ? `لديك ${cartCount} ${cartCount === 1 ? 'كتاب' : 'كتب'} في السلة التجريبية` : 'السلة جاهزة لإضافة أول كتاب'); goTo('catalog') }}>
-              <ShoppingBag size={19} />
-              <span>السلة</span>
-              {cartCount > 0 && <b>{cartCount}</b>}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main id="top">
-        <section className="hero-section">
-          <div className="container hero-grid">
-            <div className="hero-copy">
-              <span className="eyebrow"><Sparkles size={15} /> مختارات تصل إلى يدك</span>
-              <h1>كتابٌ جديد،<br /><em>نافذةٌ أوسع.</em></h1>
-              <p>ننتقي لك كتبًا ومطبوعات تحمل معنى؛ من رفوف دور النشر إلى القرّاء في كل مدينة سورية.</p>
-              <div className="hero-actions">
-                <button className="button button-primary" onClick={() => goTo('catalog')}>ابدأ التصفح <ArrowLeft size={18} /></button>
-                <button className="button button-quiet" onClick={() => goTo('about')}>لماذا سوق الكتاب؟</button>
-              </div>
-              <div className="hero-proof"><span className="proof-avatars"><i>م</i><i>ر</i><i>س</i></span><span>مختارات تُقرأ وتُهدى وتبقى</span></div>
-            </div>
-            <div className="hero-visual" aria-label="مجموعة كتب ومطبوعات مختارة">
-              <div className="hero-note"><span>مختارات هذا الشهر</span><strong>اقرأ على مهل</strong></div>
-              <div className="hero-shelf shelf-back"><BookCover product={products[1]} compact /></div>
-              <div className="hero-shelf shelf-front"><BookCover product={products[0]} compact /></div>
-              <div className="hero-print"><span className="print-sun" /><span className="print-letter">أ</span><small>ورق<br />وفكرة</small></div>
-              <div className="hero-stamp">من<br />سوريا<br />إلى سوريا</div>
-              <span className="hero-scribble scribble-one">✳</span>
-              <span className="hero-scribble scribble-two">· · ·</span>
-            </div>
-          </div>
-        </section>
-
-        <section className="benefits-strip" aria-label="مزايا سوق الكتاب">
-          <div className="container benefits-grid">
-            <div className="benefit"><span className="benefit-icon"><Library size={20} /></span><div><strong>اختيارات بعناية</strong><small>كتب تستحق مكانًا في رفك</small></div></div>
-            <div className="benefit"><span className="benefit-icon"><Truck size={20} /></span><div><strong>توصيل داخل سوريا</strong><small>نرتبها لتصل بأمان</small></div></div>
-            <div className="benefit"><span className="benefit-icon"><Headphones size={20} /></span><div><strong>نحن قريبون</strong><small>أسئلة واقتراحات بلا تعقيد</small></div></div>
-          </div>
-        </section>
-
-        <section className="section categories-section" id="categories">
-          <div className="container">
-            <SectionHeading eyebrow="تجوّل بين الرفوف" title="ما الذي تبحث عنه اليوم؟" action="كل التصنيفات" onAction={showAllProducts} />
-            <div className="categories-grid">
-              {categories.map((category) => (
-                <button key={category.label} className={`category-card ${category.tone}`} onClick={() => { setActiveCategory(category.label); goTo('catalog') }}>
-                  <span className="category-number">{category.symbol}</span>
-                  <span className="category-icon"><BookOpen size={25} strokeWidth={1.5} /></span>
-                  <span className="category-label">{category.label}</span>
-                  <span className="category-count">{category.count}</span>
-                  <ArrowUpLeft className="category-arrow" size={20} />
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="section catalog-section" id="catalog">
-          <div className="container">
-            <SectionHeading eyebrow="مختاراتنا" title="كتب تستحق أن تبدأ بها" action="عرض الكل" onAction={showAllProducts} />
-            <div className="catalog-toolbar">
-              <div className="search-box"><Search size={20} /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث عن كتاب، كاتب، أو موضوع..." aria-label="البحث عن كتاب" /></div>
-              <div className="filter-tabs" role="group" aria-label="تصفية المنتجات">
-                {['الكل', 'روايات عربية', 'فكر وتاريخ', 'كتب الأطفال', 'مطبوعات فنية'].map((category) => <button key={category} className={activeCategory === category ? 'active' : ''} onClick={() => setActiveCategory(category)}>{category}</button>)}
-              </div>
-            </div>
-            {filteredProducts.length > 0 ? (
-              <div className="product-grid">
-                {filteredProducts.slice(0, 4).map((product) => (
-                  <article className="product-card" key={product.id}>
-                    <div className="product-art"><BookCover product={product} />{product.badge && <span className="product-badge">{product.badge}</span>}<button className="wishlist" aria-label={`إضافة ${product.title} إلى المفضلة`} onClick={() => setNotice('أضيف الكتاب إلى قائمة الأمنيات التجريبية')}><Heart size={18} /></button></div>
-                    <div className="product-content"><span className="product-category">{product.category}</span><h3>{product.title}</h3><p className="product-author">{product.author}</p><p className="product-description">{product.description}</p><div className="product-footer"><div><strong>{formatPrice(product.price)}</strong>{product.oldPrice && <del>{formatPrice(product.oldPrice)}</del>}</div><button className={`add-button ${addedId === product.id ? 'added' : ''}`} onClick={() => addToCart(product)}>{addedId === product.id ? <><Check size={17} /> تمت الإضافة</> : <><ShoppingBag size={17} /> أضف</>}</button></div></div>
-                  </article>
-                ))}
-              </div>
-            ) : <div className="empty-state"><Search size={28} /><strong>لم نجد هذا العنوان بعد</strong><span>جرّب اسمًا آخر أو تصفح كل المختارات.</span><button className="button button-secondary" onClick={showAllProducts}>عرض كل الكتب</button></div>}
-          </div>
-        </section>
-
-        <section className="editorial-banner" id="about">
-          <div className="container editorial-inner"><div className="editorial-symbol"><span>اقرأ</span><BookOpen size={26} /></div><div><span className="eyebrow">فكرة سوق الكتاب</span><h2>الكتاب الجيد لا يملأ رفًّا فقط،<br /><em>بل يترك مكانًا أوسع في الداخل.</em></h2></div><button className="circle-arrow" aria-label="اقرأ المزيد عن سوق الكتاب" onClick={() => setNotice('سنحكي قصة سوق الكتاب قريبًا')}><ArrowLeft size={22} /></button></div>
-        </section>
-
-        <section className="section new-section" id="new">
-          <div className="container"><SectionHeading eyebrow="وصل حديثًا" title="إصدارات جديدة إلى الرف" action="شاهد الجديد" onAction={() => { setActiveCategory('الكل'); setQuery(''); goTo('catalog') }} /><div className="new-layout"><div className="new-feature"><div className="new-feature-copy"><span className="eyebrow">إصدار محدود</span><h3>أطلس دمشق الصغير</h3><p>تفاصيل المدينة التي نمرّ بها كل يوم، في مطبوعة فنية تحفظ الذاكرة وتليق بالجدار.</p><button className="text-link light-link" onClick={() => addToCart(products[2])}>اكتشف الإصدار <ArrowLeft size={17} /></button></div><div className="new-feature-art"><BookCover product={products[2]} /></div></div><div className="new-list">{products.slice(4, 6).map((product) => <article key={product.id} className="mini-product"><BookCover product={product} compact /><div><span className="product-category">{product.category}</span><h3>{product.title}</h3><p>{product.author}</p><strong>{formatPrice(product.price)}</strong></div><button aria-label={`أضف ${product.title} إلى السلة`} onClick={() => addToCart(product)}><ChevronLeft size={19} /></button></article>)}</div></div></div>
-        </section>
-      </main>
-
-      <footer className="site-footer">
-        <div className="container footer-main"><div className="footer-brand"><a href="#top" className="brand" onClick={() => goTo('top')}><span className="brand-mark"><BookOpen size={24} strokeWidth={1.7} /></span><span className="brand-copy"><strong>سوق الكتاب</strong><small>رفّك الأقرب</small></span></a><p>كتب ومطبوعات مختارة، تصل من رفوفنا إلى القرّاء في سوريا.</p><div className="socials"><button aria-label="إنستغرام" onClick={() => setNotice('رابط إنستغرام سيُضاف قريبًا')}><Instagram size={18} /></button><button aria-label="التواصل معنا" onClick={() => setNotice('قناة التواصل ستُضاف عند ربط الطلبات')}><Headphones size={18} /></button></div></div><div className="footer-column"><strong>تصفح</strong><a href="#catalog" onClick={() => goTo('catalog')}>كل الكتب</a><a href="#categories" onClick={() => goTo('categories')}>التصنيفات</a><a href="#new" onClick={() => goTo('new')}>وصل حديثًا</a></div><div className="footer-column"><strong>نساعدك</strong><a href="#about" onClick={() => goTo('about')}>عن سوق الكتاب</a><button onClick={() => setNotice('سيظهر دليل الطلب والتوصيل في المرحلة التالية')}>الطلب والتوصيل</button><button onClick={() => setNotice('سيظهر قسم الأسئلة الشائعة قريبًا')}>الأسئلة الشائعة</button></div><div className="footer-note"><span className="eyebrow">رسالة صغيرة</span><p>«كل كتاب هو بداية حديث لم يبدأ بعد.»</p><small>النسخة الأولى من متجر سوق الكتاب · سوريا</small></div></div><div className="container footer-bottom"><span>© 2026 سوق الكتاب. جميع الحقوق محفوظة.</span><span>تجربة أولية ببيانات تجريبية</span></div>
-      </footer>
-    </div>
-  )
+    <footer className="site-footer"><div className="container footer-main"><div className="footer-brand"><button className="brand brand-button" onClick={showHome}><span className="brand-mark"><BookOpen size={24} strokeWidth={1.7} /></span><span className="brand-copy"><strong>سوق الكتاب</strong><small>رفّك الأقرب</small></span></button><p>كتب ومطبوعات مختارة، تصل من رفوفنا إلى القرّاء في سوريا.</p><div className="socials"><button aria-label="إنستغرام" onClick={() => setNotice('رابط إنستغرام سيُضاف قريبًا')}><Instagram size={18} /></button><button aria-label="التواصل معنا" onClick={() => setNotice('قناة التواصل ستُربط بعد اعتماد رقم المتجر')}><Headphones size={18} /></button></div></div><div className="footer-column"><strong>تصفح</strong><button onClick={() => goTo('catalog')}>كل الكتب</button><button onClick={() => goTo('categories')}>التصنيفات</button><button onClick={() => goTo('new')}>وصل حديثًا</button></div><div className="footer-column"><strong>نساعدك</strong><button onClick={() => goTo('about')}>عن سوق الكتاب</button><button onClick={() => setNotice('دليل الطلب والتوصيل مضمّن داخل صفحة إتمام الطلب')}>الطلب والتوصيل</button><button onClick={() => setNotice('الأسئلة الشائعة ستُضاف مع إطلاق المتجر')}>الأسئلة الشائعة</button></div><div className="footer-note"><span className="eyebrow">رسالة صغيرة</span><p>«كل كتاب هو بداية حديث لم يبدأ بعد.»</p><small>النسخة الأولى من متجر سوق الكتاب · سوريا</small></div></div><div className="container footer-bottom"><span>© 2026 سوق الكتاب. جميع الحقوق محفوظة.</span><span>طلب تجريبي محفوظ محليًا</span></div></footer></div>
 }
 
 export default App
